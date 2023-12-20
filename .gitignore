@@ -1,0 +1,9 @@
+# Dependencies
+node_modules
+
+# Outputs
+dist
+coverage
+
+# Projects
+.idea
