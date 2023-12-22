@@ -1,7 +1,7 @@
 import { CognitoIdOrAccessTokenPayload } from "aws-jwt-verify/jwt-model";
 import fp from "fastify-plugin";
 import { Auther } from "./auther";
-import { FastifyCognitoOptions } from "./options";
+import { FastifyAwsJwtVerifyOptions } from "./options";
 import { fastifyAwsJwtVerifyPlugin } from "./plugin";
 
 declare module 'fastify' {
@@ -13,7 +13,7 @@ declare module 'fastify' {
              * plugin configuration fields. If omitted, the base configuration
              * is used as-is.
              */
-            require: (options?: FastifyCognitoOptions) => Auther
+            require: (options?: Partial<FastifyAwsJwtVerifyOptions>) => Auther
 
             /**
              * Create handler that verifies the JWT token before continuing,

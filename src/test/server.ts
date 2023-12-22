@@ -2,12 +2,12 @@ import { CognitoJwtVerifierProperties } from "aws-jwt-verify/cognito-verifier";
 import Fastify, { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { Auther } from "../auther";
-import { FastifyCognitoOptions } from "../options";
+import { FastifyAwsJwtVerifyOptions } from "../options";
 import { fastifyAwsJwtVerifyPlugin } from "../plugin";
 import { toStrings } from "./util";
 
 export type TestServerInit = Required<Pick<CognitoJwtVerifierProperties, 'clientId' | 'groups'>> & {
-    options: FastifyCognitoOptions
+    options: FastifyAwsJwtVerifyOptions
 }
 
 export const hoistTestServer = (init: TestServerInit) => {

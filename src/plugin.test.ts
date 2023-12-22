@@ -2,7 +2,7 @@ import { CognitoJwtVerifierMultiProperties, CognitoJwtVerifierProperties } from 
 import Fastify from "fastify";
 import fp from "fastify-plugin";
 import { InternalServerError, Unauthorized } from "http-errors";
-import { FastifyCognitoOptions } from "./options";
+import { FastifyAwsJwtVerifyOptions } from "./options";
 import { fastifyAwsJwtVerifyPlugin } from "./plugin";
 import { TestServerInit, hoistTestServer } from "./test/server";
 
@@ -12,7 +12,7 @@ jest.mock('./options', () => {
     return {
         __esModule: true,
         ...originalModule,
-        verifyOptions: jest.fn((options: FastifyCognitoOptions) => {
+        verifyOptions: jest.fn((options: FastifyAwsJwtVerifyOptions) => {
             if (options.tokenProvider !== 'Bearer') {
                 throw new Error('mocked error')
             }
