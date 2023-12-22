@@ -5,7 +5,7 @@ import { verify, verifyMulti } from "./verify";
 
 const authenticateAndAuthorize = async(req: FastifyRequest, options: FastifyCognitoOptions) => {
     const token = getToken(req, options.tokenProvider)
-    return isMulti(options) ? verifyMulti(token, options.multi) : verify(token, options)
+    return isMulti(options) ? verifyMulti(token, options.pools) : verify(token, options)
 }
 
 export const createAuther = (options: FastifyCognitoOptions) => {

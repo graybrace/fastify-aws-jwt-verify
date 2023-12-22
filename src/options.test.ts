@@ -60,29 +60,29 @@ test('tokenUse can be null', () => {
     })).toBe(true)
 })
 
-test('multi being empty throws', () => {
+test('pools being empty throws', () => {
     expect(() => testVerifyOptions({
         tokenProvider: 'Bearer',
-        multi: []
-    })).toThrow('multi must be omitted or nonempty')
+        pools: []
+    })).toThrow('pools must be omitted or nonempty')
 })
 
-test('multi with one user pool throws', () => {
+test('pools with one user pool throws', () => {
     expect(() => testVerifyOptions({
         tokenProvider: 'Bearer',
-        multi: [
+        pools: [
             {
                 userPoolId: 'user pool',
                 ...GOOD_USER_POOL
             }
         ]
-    })).toThrow('multi must specify multiple user pools')
+    })).toThrow('pools must specify multiple user pools')
 })
 
-test('multi with bad user pool throws', () => {
+test('pools with bad user pool throws', () => {
     expect(() => testVerifyOptions({
         tokenProvider: 'Bearer',
-        multi: [
+        pools: [
             {
                 userPoolId: 'user pool 1',
                 ...GOOD_USER_POOL,
@@ -93,13 +93,13 @@ test('multi with bad user pool throws', () => {
                 ...GOOD_USER_POOL
             }
         ]
-    })).toThrow('multi[0].clientId must be specified or explicitly null')
+    })).toThrow('pools[0].clientId must be specified or explicitly null')
 })
 
-test('multi with good user pools returns', () => {
+test('pools with good user pools returns', () => {
     expect(testVerifyOptions({
         tokenProvider: 'Bearer',
-        multi: [
+        pools: [
             {
                 userPoolId: 'user pool 1',
                 ...GOOD_USER_POOL

@@ -1,14 +1,16 @@
 import { CognitoJwtVerifierProperties } from "aws-jwt-verify/cognito-verifier";
 import Fastify, { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
+import { Auther } from "../auther";
 import { FastifyCognitoOptions } from "../options";
-import { fastifyCognitoPlugin } from "../plugin";
+import { fastifyAwsJwtVerifyPlugin } from "../plugin";
+import { toStrings } from "./util";
 
 export type TestServerInit = Required<Pick<CognitoJwtVerifierProperties, 'clientId' | 'groups'>> & {
     options: FastifyCognitoOptions
 }
 
-export const useTestServer = (init: TestServerInit) => {
+export const hoistTestServer = (init: TestServerInit) => {
     let fastify: FastifyInstance
 
     beforeAll(async() => {
@@ -22,41 +24,29 @@ export const useTestServer = (init: TestServerInit) => {
     return () => fastify
 }
 
-const toStrings = (s?: string | string[] | null): string[] => {
-    if (s == null) {
-        return []
-    } else if (typeof s === 'string') {
-        return [s]
-    } else {
-        return s
-    }
-}
-
-const startTestServer = async (init: TestServerInit) => {
+const startTestServer = async(init: TestServerInit) => {
     const fastify = Fastify()
 
-    await fastify.register(fp(fastifyCognitoPlugin), {
+    await fastify.register(fp(fastifyAwsJwtVerifyPlugin), {
         tokenProvider: 'Bearer',
         userPoolId: 'mock user pool',
         clientId: 'mock global client',
         tokenUse: 'access'
     })
 
-    fastify.get('/auth/create', {
-        onRequest: fastify.auth.create(init.options)
-    }, () => 'Success')
+    // One endpoint per configuration method, plus one (public) with no auth requirement
+    getSuccess(fastify, '/auth/create', fastify.auth.require(init.options))
+    getSuccess(fastify, '/auth/client', fastify.auth.client(...toStrings(init.clientId)))
+    getSuccess(fastify, '/auth/groups', fastify.auth.groups(...toStrings(init.groups)))
+    getSuccess(fastify, '/public')
 
-    fastify.get('/auth/client', {
-        onRequest: fastify.auth.client(...toStrings(init.clientId))
-    }, () => 'Success')
-
-    fastify.get('/auth/groups', {
-        onRequest: fastify.auth.groups(...toStrings(init.groups))
-    }, () => 'Success')
-
-    fastify.get('/public', () => 'Success')
-
-    await fastify.listen({port: 0})
+    await fastify.listen({ port: 0 })
 
     return fastify
 }
+
+const getSuccess = (fastify: FastifyInstance, path: string, onRequest?: Auther) => {
+    fastify.get(path, { onRequest }, success)
+}
+
+const success = () => 'Success'

@@ -3,8 +3,8 @@ import Fastify from "fastify";
 import fp from "fastify-plugin";
 import { InternalServerError, Unauthorized } from "http-errors";
 import { FastifyCognitoOptions } from "./options";
-import { fastifyCognitoPlugin } from "./plugin";
-import { TestServerInit, useTestServer } from "./test/server";
+import { fastifyAwsJwtVerifyPlugin } from "./plugin";
+import { TestServerInit, hoistTestServer } from "./test/server";
 
 jest.mock('./options', () => {
     const originalModule = jest.requireActual('./options')
@@ -61,7 +61,7 @@ const SINGLE_OPTIONS: TestServerInit = {
 
 const MULTI_OPTIONS: TestServerInit = {
     options: {
-        multi: [
+        pools: [
             {
                 clientId: 'client',
                 tokenUse: 'access',
@@ -83,7 +83,7 @@ const SERVER_OPTIONS: TestServerInit[] = [ SINGLE_OPTIONS, MULTI_OPTIONS ]
 
 describe('no token tests', () => {
     SERVER_OPTIONS.forEach(options => {
-        const getFastify = useTestServer(options)
+        const getFastify = hoistTestServer(options)
 
         test('public does not need token', async() => {
             const res = await getFastify().inject('/public')
@@ -109,7 +109,7 @@ describe('no token tests', () => {
 
 test('verify failure throws during plugin registration', async() => {
     const fastify = Fastify()
-    await expect(async() => await fastify.register(fp(fastifyCognitoPlugin), {
+    await expect(async() => await fastify.register(fp(fastifyAwsJwtVerifyPlugin), {
         tokenProvider: () => 'mock token',
         userPoolId: 'mock user pool',
         clientId: 'mock global client',
@@ -122,7 +122,7 @@ describe('authers call verify helpers', () => {
         [ 'single user pool', SINGLE_OPTIONS ],
         [ 'multi user pool', MULTI_OPTIONS ]
     ])('%s', (_, opts) => {
-        const getFastify = useTestServer(opts)
+        const getFastify = hoistTestServer(opts)
 
         test.each([
             [ '/auth/create', 'unauthorized',   401 ],

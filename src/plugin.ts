@@ -2,11 +2,11 @@ import { FastifyInstance } from "fastify";
 import { createAuther } from "./auther";
 import { FastifyCognitoOptions, verifyOptions } from "./options";
 
-export const fastifyCognitoPlugin = async(fastify: FastifyInstance, options: FastifyCognitoOptions) => {
+export const fastifyAwsJwtVerifyPlugin = async(fastify: FastifyInstance, options: FastifyCognitoOptions) => {
     verifyOptions(options)
 
     fastify.decorate('auth', {
-        create: (autherOptions: FastifyCognitoOptions) => createAuther({
+        require: (autherOptions?: FastifyCognitoOptions) => createAuther({
            ...options,
            ...autherOptions
         }),
