@@ -1,8 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@3/schema.json",
   "entry": [
-    "src/index.ts",
-    "src/__mocks__/*.ts"
+    "src/index.ts"
   ],
   "ignoreDependencies": [
     "@types/jest"
