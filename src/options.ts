@@ -5,7 +5,7 @@ type FastifyMultiPoolCognitoOptions = {
     pools: CognitoJwtVerifierMultiProperties[]
 }
 
-export type FastifyCognitoOptions = (CognitoJwtVerifierProperties | FastifyMultiPoolCognitoOptions) & {
+export type FastifyAwsJwtVerifyOptions = (CognitoJwtVerifierProperties | FastifyMultiPoolCognitoOptions) & {
     /**
      * Specifies how the JWT token is provided in requests
      * - Bearer: given in Authorization header as 'Bearer <TOKEN>'
@@ -16,7 +16,7 @@ export type FastifyCognitoOptions = (CognitoJwtVerifierProperties | FastifyMulti
     tokenProvider: TokenProvider
 }
 
-export const verifyOptions = ({ tokenProvider, ...options }: FastifyCognitoOptions) => {
+export const verifyOptions = ({ tokenProvider, ...options }: FastifyAwsJwtVerifyOptions) => {
     if (!tokenProvider) {
         throw new Error('tokenProvider is required')
     }

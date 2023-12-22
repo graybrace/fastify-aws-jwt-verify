@@ -1,8 +1,8 @@
 import { CognitoVerifyProperties } from "aws-jwt-verify/cognito-verifier";
-import { FastifyCognitoOptions, verifyOptions } from "./options";
+import { FastifyAwsJwtVerifyOptions, verifyOptions } from "./options";
 
 // Simple wrapper just to make testing a return value possible for simpler tests
-const testVerifyOptions = (options: FastifyCognitoOptions) => {
+const testVerifyOptions = (options: FastifyAwsJwtVerifyOptions) => {
     verifyOptions(options)
     return true
 }
@@ -12,7 +12,7 @@ const GOOD_USER_POOL: CognitoVerifyProperties = {
     tokenUse: 'access'
 }
 
-const GOOD_SINGLE_OPTIONS: FastifyCognitoOptions = {
+const GOOD_SINGLE_OPTIONS: FastifyAwsJwtVerifyOptions = {
     tokenProvider: 'Bearer',
     userPoolId: 'user pool',
     ...GOOD_USER_POOL
