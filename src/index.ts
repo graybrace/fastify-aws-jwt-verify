@@ -1,16 +1,20 @@
+import { CognitoIdOrAccessTokenPayload } from "aws-jwt-verify/jwt-model";
 import fp from "fastify-plugin";
 import { Auther } from "./auther";
-import { AuthorizerOptions } from "./authorizers/default";
+import { FastifyCognitoOptions } from "./options";
 import { fastifyCognitoPlugin } from "./plugin";
 
 declare module 'fastify' {
     interface FastifyInstance {
-        authenticator: Auther,
-        authorizer: (authOptions?: AuthorizerOptions) => Auther,
         auth: {
+            create: (options: FastifyCognitoOptions) => Auther
             groups: (...groups: string[]) => Auther
-            client: (clientId: string) => Auther
+            client: (...clientIds: string[]) => Auther
         }
+    }
+
+    interface FastifyRequest {
+        user: CognitoIdOrAccessTokenPayload<unknown, unknown>
     }
 }
 

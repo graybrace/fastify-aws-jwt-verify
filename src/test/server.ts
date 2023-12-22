@@ -1,56 +1,18 @@
+import { CognitoJwtVerifierProperties } from "aws-jwt-verify/cognito-verifier";
 import Fastify, { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
-import { CognitoUser } from "../authorizers/cognito-user.interface";
+import { FastifyCognitoOptions } from "../options";
 import { fastifyCognitoPlugin } from "../plugin";
 
-interface TestServerOptions {
-    globalClientId?: string
-    clientId?: string
-    groups?: string[]
-    user: CognitoUser
+export type TestServerInit = Required<Pick<CognitoJwtVerifierProperties, 'clientId' | 'groups'>> & {
+    options: FastifyCognitoOptions
 }
 
-const startTestServer = async (options: TestServerOptions) => {
-    const fastify = Fastify()
-
-    await fastify.register(fp(async(fastify: FastifyInstance) => {
-        fastify.testuser = options.user
-    }))
-
-    await fastify.register(fp(fastifyCognitoPlugin), {
-        region: 'us-east-1',
-        userPoolId: 'mock-user-pool',
-        clientId: options.globalClientId
-    })
-
-    fastify.get('/authenticate', {
-        onRequest: fastify.authenticator
-    }, () => 'Success')
-
-    fastify.get('/authorize', {
-        onRequest: fastify.authorizer(options)
-    }, () => 'Success')
-
-    fastify.get('/auth/client', {
-        onRequest: fastify.auth.client(options.clientId)
-    }, () => 'Success')
-
-    fastify.get('/auth/groups', {
-        onRequest: fastify.auth.groups(...(options.groups || []))
-    }, () => 'Success')
-
-    fastify.get('/public', () => 'Success')
-
-    await fastify.listen({port: 0})
-
-    return fastify
-}
-
-export const useTestServer = (options: TestServerOptions) => {
+export const useTestServer = (init: TestServerInit) => {
     let fastify: FastifyInstance
 
     beforeAll(async() => {
-        fastify = await startTestServer(options)
+        fastify = await startTestServer(init)
     })
 
     afterAll(async() => {
@@ -58,4 +20,43 @@ export const useTestServer = (options: TestServerOptions) => {
     })
 
     return () => fastify
+}
+
+const toStrings = (s?: string | string[] | null): string[] => {
+    if (s == null) {
+        return []
+    } else if (typeof s === 'string') {
+        return [s]
+    } else {
+        return s
+    }
+}
+
+const startTestServer = async (init: TestServerInit) => {
+    const fastify = Fastify()
+
+    await fastify.register(fp(fastifyCognitoPlugin), {
+        tokenProvider: 'Bearer',
+        userPoolId: 'mock user pool',
+        clientId: 'mock global client',
+        tokenUse: 'access'
+    })
+
+    fastify.get('/auth/create', {
+        onRequest: fastify.auth.create(init.options)
+    }, () => 'Success')
+
+    fastify.get('/auth/client', {
+        onRequest: fastify.auth.client(...toStrings(init.clientId))
+    }, () => 'Success')
+
+    fastify.get('/auth/groups', {
+        onRequest: fastify.auth.groups(...toStrings(init.groups))
+    }, () => 'Success')
+
+    fastify.get('/public', () => 'Success')
+
+    await fastify.listen({port: 0})
+
+    return fastify
 }

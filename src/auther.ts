@@ -1,27 +1,16 @@
-import { FastifyReply, FastifyRequest } from "fastify";
-import { authorize, AuthorizerOptions } from "./authorizers/default";
-import { CognitoUser } from "./authorizers/cognito-user.interface";
+import { FastifyRequest } from "fastify";
+import { FastifyCognitoOptions, isMulti } from "./options";
+import { getToken } from "./token";
+import { verify, verifyMulti } from "./verify";
 
-const authenticateAndAuthorize = async(req: FastifyRequest, reply: FastifyReply, options: AuthorizerOptions) => {
-    await req.server.authenticate(req, reply)
-    const cognitoUser = req.user as CognitoUser
-    try {
-        authorize(cognitoUser, options)
-    } catch (err) {
-        if (err instanceof Error) {
-            return reply.code(403).send({
-                statusCode: 403,
-                status: 'Forbidden',
-                message: err.message
-            })
-        }
-        throw err
-    }
+const authenticateAndAuthorize = async(req: FastifyRequest, options: FastifyCognitoOptions) => {
+    const token = getToken(req, options.tokenProvider)
+    return isMulti(options) ? verifyMulti(token, options.multi) : verify(token, options)
 }
 
-export const createAuther = (options: AuthorizerOptions = {}) => {
-    return async(req: FastifyRequest, reply: FastifyReply) => {
-        return authenticateAndAuthorize(req, reply, options)
+export const createAuther = (options: FastifyCognitoOptions) => {
+    return async(req: FastifyRequest) => {
+        req.user = await authenticateAndAuthorize(req, options)
     }
 }
 

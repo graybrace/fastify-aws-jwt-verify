@@ -1,181 +1,145 @@
-jest.mock("fastify-jwt-jwks")
-import { expectForbidden, expectSuccess, expectUnauthorized } from "./test/expect";
-import { injectToken } from "./test/inject";
-import { useTestServer } from "./test/server";
+import { CognitoJwtVerifierMultiProperties, CognitoJwtVerifierProperties } from "aws-jwt-verify/cognito-verifier";
+import Fastify from "fastify";
+import fp from "fastify-plugin";
+import { InternalServerError, Unauthorized } from "http-errors";
+import { FastifyCognitoOptions } from "./options";
+import { fastifyCognitoPlugin } from "./plugin";
+import { TestServerInit, useTestServer } from "./test/server";
 
-declare module 'fastify' {
-    interface FastifyInstance {
-        testuser: object
+jest.mock('./options', () => {
+    const originalModule = jest.requireActual('./options')
+
+    return {
+        __esModule: true,
+        ...originalModule,
+        verifyOptions: jest.fn((options: FastifyCognitoOptions) => {
+            if (options.tokenProvider !== 'Bearer') {
+                throw new Error('mocked error')
+            }
+        }),
     }
+})
+
+jest.mock('./verify', () => {
+    const originalModule = jest.requireActual('./verify')
+
+    const verify = (token: string, msg: string) => {
+        if (token === 'unauthorized') {
+            throw new Unauthorized(msg)
+        } else if (token === 'error') {
+            throw new InternalServerError(msg)
+        }
+    }
+
+    return {
+        __esModule: true,
+        ...originalModule,
+        verify: jest.fn(async<T extends CognitoJwtVerifierProperties>(
+            token: string,
+            options: T & Partial<CognitoJwtVerifierProperties>
+        ) => {
+            verify(token, options.userPoolId)
+        }),
+        verifyMulti: jest.fn(async<T extends CognitoJwtVerifierProperties>(
+            token: string,
+            options: (T & Partial<CognitoJwtVerifierMultiProperties>)[]
+        ) => {
+            verify(token, options[0].userPoolId)
+        })
+    }
+})
+
+const SINGLE_OPTIONS: TestServerInit = {
+    options: {
+        clientId: 'client',
+        tokenProvider: 'Bearer',
+        userPoolId: 'user pool'
+    },
+    clientId: 'client',
+    groups: 'group 1'
 }
 
-const TEST_USER = {
-    client_id: 'test-client-id',
-    'cognito:groups': [ 'group1', 'group2', 'group3' ],
-    sub: 'test-user'
+const MULTI_OPTIONS: TestServerInit = {
+    options: {
+        multi: [
+            {
+                clientId: 'client',
+                tokenUse: 'access',
+                userPoolId: 'user pool 1'
+            },
+            {
+                clientId: 'client',
+                tokenUse: 'access',
+                userPoolId: 'user pool 2'
+            }
+        ],
+        tokenProvider: 'Bearer'
+    },
+    clientId: 'client',
+    groups: 'group 1'
 }
 
-const SERVER_OPTIONS = [
-    // No authorization requirements
-    {
-        user: TEST_USER
-    },
-    // Global client ID
-    {
-        globalClientId: 'global-client-id',
-        user: TEST_USER
-    },
-    // Global client ID + local client ID
-    {
-        clientId: 'test-client-id',
-        globalClientId: 'global-client-id',
-        user: TEST_USER
-    },
-    // Groups
-    {
-        globalClientId: 'global-client-id',
-        groups: [ 'group1', 'group3' ],
-        user: TEST_USER
-    },
-    // Client ID + groups
-    {
-        clientId: 'test-client-id',
-        groups: [ 'group1', 'group3' ],
-        user: TEST_USER
-    }
-]
+const SERVER_OPTIONS: TestServerInit[] = [ SINGLE_OPTIONS, MULTI_OPTIONS ]
 
-describe('cognito-authed server', () => {
-    describe('no token tests', () => {
-        SERVER_OPTIONS.forEach(options => {
-            const getFastify = useTestServer(options)
+describe('no token tests', () => {
+    SERVER_OPTIONS.forEach(options => {
+        const getFastify = useTestServer(options)
 
-            test('public does not need token', async() => {
-                expectSuccess(await getFastify().inject('/public'))
-            })
+        test('public does not need token', async() => {
+            const res = await getFastify().inject('/public')
+            expect(res.statusCode).toBe(200)
+        })
 
-            test('authenticate rejects no token', async() => {
-                expectUnauthorized(await getFastify().inject('/authenticate'))
-            })
+        test('auth/create rejects no token', async() => {
+            const res = await getFastify().inject('/auth/create')
+            expect(res.statusCode).toBe(401)
+        })
 
-            test('authorize rejects no token', async() => {
-                expectUnauthorized(await getFastify().inject('/authorize'))
-            })
+        test('auth/client rejects no token', async() => {
+            const res = await getFastify().inject('/auth/client')
+            expect(res.statusCode).toBe(401)
+        })
 
-            test('auth/client rejects no token', async() => {
-                expectUnauthorized(await getFastify().inject('/auth/client'))
-            })
-
-            test('auth/groups rejects no token', async() => {
-                expectUnauthorized(await getFastify().inject('/auth/groups'))
-            })
+        test('auth/groups rejects no token', async() => {
+            const res = await getFastify().inject('/auth/groups')
+            expect(res.statusCode).toBe(401)
         })
     })
+})
 
-    describe('authentication only', () => {
-        const getFastify = useTestServer(SERVER_OPTIONS[0])
+test('verify failure throws during plugin registration', async() => {
+    const fastify = Fastify()
+    await expect(async() => await fastify.register(fp(fastifyCognitoPlugin), {
+        tokenProvider: () => 'mock token',
+        userPoolId: 'mock user pool',
+        clientId: 'mock global client',
+        tokenUse: 'access'
+    })).rejects.toThrow('mocked error')
+})
 
-        test('authenticate successful with token', async() => {
-            expectSuccess(await injectToken(getFastify(), '/authenticate'))
-        })
+describe('authers call verify helpers', () => {
+    describe.each([
+        [ 'single user pool', SINGLE_OPTIONS ],
+        [ 'multi user pool', MULTI_OPTIONS ]
+    ])('%s', (_, opts) => {
+        const getFastify = useTestServer(opts)
 
-        test('authorize successful with token', async() => {
-            expectSuccess(await injectToken(getFastify(), '/authorize'))
-        })
-
-        test('auth/client successful with token', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/client'))
-        })
-
-        test('auth/groups successful with token', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/groups'))
-        })
-    })
-
-    describe('global client id', () => {
-        const getFastify = useTestServer(SERVER_OPTIONS[1])
-
-        test('authenticate rejects bad client id', async() => {
-            const res = await injectToken(getFastify(), '/authenticate')
-            expectForbidden(res, "User 'test-user' not authorized for client 'global-client-id'")
-        })
-
-        test('authorize rejects bad client id', async() => {
-            const res = await injectToken(getFastify(), '/authorize')
-            expectForbidden(res, "User 'test-user' not authorized for client 'global-client-id'")
-        })
-
-        test('authorize rejects bad client id', async() => {
-            const res = await injectToken(getFastify(), '/auth/client')
-            expectForbidden(res, "User 'test-user' not authorized for client 'global-client-id'")
-        })
-
-        test('auth/groups successful with token', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/groups'))
-        })
-    })
-
-    describe('global + local client id', () => {
-        const getFastify = useTestServer(SERVER_OPTIONS[2])
-
-        test('authenticate rejects bad client id', async() => {
-            const res = await injectToken(getFastify(), '/authenticate')
-            expectForbidden(res, "User 'test-user' not authorized for client 'global-client-id'")
-        })
-
-        test('authorize successful with local client id', async() => {
-            expectSuccess(await injectToken(getFastify(), '/authorize'))
-        })
-
-        test('authorize successful with local client id', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/client'))
-        })
-
-        test('auth/groups successful with token', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/groups'))
-        })
-    })
-
-    describe('groups', () => {
-        const getFastify = useTestServer(SERVER_OPTIONS[3])
-
-        test('authenticate rejects bad client id', async() => {
-            const res = await injectToken(getFastify(), '/authenticate')
-            expectForbidden(res, "User 'test-user' not authorized for client 'global-client-id'")
-        })
-
-        test('authorize rejects client id', async() => {
-            const res = await injectToken(getFastify(), '/authorize')
-            expectForbidden(res, "User 'test-user' not authorized for client 'global-client-id'")
-        })
-
-        test('authorize rejects client id', async() => {
-            const res = await injectToken(getFastify(), '/auth/client')
-            expectForbidden(res, "User 'test-user' not authorized for client 'global-client-id'")
-        })
-
-        test('auth/groups successful with groups', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/groups'))
-        })
-    })
-
-    describe('local client id + groups', () => {
-        const getFastify = useTestServer(SERVER_OPTIONS[4])
-
-        test('authenticate rejects bad client id', async() => {
-            expectSuccess(await injectToken(getFastify(), '/authenticate'))
-        })
-
-        test('authorize rejects client id', async() => {
-            expectSuccess(await injectToken(getFastify(), '/authorize'))
-        })
-
-        test('authorize rejects client id', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/client'))
-        })
-
-        test('auth/groups successful with groups', async() => {
-            expectSuccess(await injectToken(getFastify(), '/auth/groups'))
+        test.each([
+            [ '/auth/create', 'unauthorized',   401 ],
+            [ '/auth/client', 'unauthorized',   401 ],
+            [ '/auth/groups', 'unauthorized',   401 ],
+            [ '/auth/create', 'error',          500 ],
+            [ '/auth/client', 'error',          500 ],
+            [ '/auth/groups', 'error',          500 ],
+            [ '/auth/create', 'good',          200 ],
+            [ '/auth/client', 'good',          200 ],
+            [ '/auth/groups', 'good',          200 ]
+        ])('%s, token = %s gives %i', async(path, token, statusCode) => {
+            const res= await getFastify().inject({
+                headers: { authorization: `Bearer ${token}` },
+                path
+            })
+            expect(res.statusCode).toBe(statusCode)
         })
     })
 })
