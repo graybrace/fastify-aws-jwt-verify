@@ -33,8 +33,8 @@ jobs:
 
       - name: Publish Test Results
         uses: dorny/test-reporter@v1
+        if: success() || failure()
         with:
-         artifact: test-results
          name: JEST Tests
-         path: 'reports/*.xml'
+         path: 'reports/jest-*.xml'
          reporter: jest-junit
