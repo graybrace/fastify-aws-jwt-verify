@@ -2,8 +2,9 @@
 node_modules
 
 # Outputs
-dist
 coverage
+dist
+reports
 
 # Projects
 .idea
