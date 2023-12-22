@@ -38,3 +38,6 @@ jobs:
          name: JEST Tests
          path: 'reports/jest-*.xml'
          reporter: jest-junit
+
+      - name: Publish Test Coverage
+        uses: ArtiomTr/jest-coverage-report-action@v2
