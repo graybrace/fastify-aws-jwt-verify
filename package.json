@@ -1,6 +1,6 @@
 {
   "name": "fastify-aws-jwt-verify",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Fastify plugin wrapper around aws-jwt-verify for JWT authentication/authorization with AWS Cognito",
   "author": "Gray Brace",
   "homepage": "https://github.com/graybrace/fastify-aws-jwt-verify",
