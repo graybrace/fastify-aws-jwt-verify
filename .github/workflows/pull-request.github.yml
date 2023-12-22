@@ -40,8 +40,7 @@ jobs:
          reporter: jest-junit
 
       - name: Publish Test Coverage
-        uses: ArtiomTr/jest-coverage-report-action@v2
+        uses: danhunsaker/clover-reporter-action@v0.2.17-clover
         with:
-          coverage-file: ./coverage/coverage-final.json
-          base-coverage-file: ./coverage/coverage-final.json
-          skip-step: all
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          clover-file: ./coverage/clover.xml
