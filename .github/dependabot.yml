@@ -5,12 +5,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    assignees:
-      - "kurtisz"
 
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "monthly"
-    assignees:
-      - "kurtisz"
