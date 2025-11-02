@@ -42,7 +42,7 @@ declare module 'fastify' {
 }
 
 const FastifyAwsJwtVerify = fp(fastifyAwsJwtVerifyPlugin, {
-    fastify: '>=4.x',
+    fastify: '>=5.x',
     name: 'fastify-aws-jwt-verify'
 })
 export default FastifyAwsJwtVerify
